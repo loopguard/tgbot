@@ -8,8 +8,10 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o tgbot cmd/main.go
 
-FROM scratch
+FROM alpine:latest
 
 COPY --from=builder /tgbot /
+
+EXPOSE 8000
 
 ENTRYPOINT ["/tgbot"]
