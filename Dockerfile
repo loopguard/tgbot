@@ -1,13 +1,15 @@
-FROM golang:latest
+FROM golang:1.21-alpine as builder
 
 WORKDIR /
+
+COPY go.mod go.sum ./
+RUN go mod download
+
 COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o tgbot cmd/main.go
 
-# Собираем приложение
-RUN go build -o tgbot cmd/main.go
+FROM scratch
 
-# Определяем порт, на котором будет работать приложение
-EXPOSE 8080
+COPY --from=builder /tgbot /
 
-# Запускаем приложение при старте контейнера
-CMD ["./tgbot"]
+ENTRYPOINT ["/tgbot"]

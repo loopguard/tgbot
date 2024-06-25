@@ -1,0 +1,8 @@
+Package: tgbot
+Version: 2.0.1-0
+Section: misc
+Priority: optional
+Installed-Size: ${DEB_CONTROL_SIZE}
+Architecture: amd64
+Maintainer: Alexander Efimov
+Description: Telegram bot

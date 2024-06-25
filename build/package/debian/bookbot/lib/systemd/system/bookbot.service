@@ -1,0 +1,11 @@
+[Unit]
+Description=Telegram tgbot
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/tgbot start -c /etc/tgbot/config.yml
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
