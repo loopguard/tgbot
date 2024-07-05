@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"strconv"
 	"time"
@@ -8,20 +9,22 @@ import (
 	tele "gopkg.in/telebot.v3"
 )
 
-var (
-	// Universal markup builders.
-	menu             = &tele.ReplyMarkup{}
-	categorySelector = &tele.ReplyMarkup{}
+type Handler struct {
+	ctx context.Context
+	bot *tele.Bot
 
-	// Reply buttons.
-	btnSubscribe   = menu.Text("Записаться")
-	btnSendMessage = menu.Text("Как устроены тренировки")
+	menu             *tele.ReplyMarkup
+	categorySelector *tele.ReplyMarkup
+}
 
-	btnOnlineCategory  = menu.Text("Онлайн")
-	btnOfflineCategory = menu.Text("Оффлайн")
-	btnAnketaCategory  = menu.Text("Заполнить анкету")
-	btnCategoryBack    = menu.Text("Назад")
-)
+func NewHandler(ctx context.Context, bot *tele.Bot, menu *tele.ReplyMarkup, categorySelector *tele.ReplyMarkup) *Handler {
+	return &Handler{
+		ctx:              ctx,
+		bot:              bot,
+		menu:             menu,
+		categorySelector: categorySelector,
+	}
+}
 
 type User struct {
 	userID string
@@ -38,18 +41,34 @@ func main() {
 		Poller: &tele.LongPoller{Timeout: 10 * time.Second},
 	}
 
-	b, err := tele.NewBot(pref)
+	bot, err := tele.NewBot(pref)
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
 
-	menu.Reply(
+	// Reply menu buttons
+	menu := &tele.ReplyMarkup{ResizeKeyboard: true}
+	btnSubscribe := menu.Text("Записаться")
+	btnSendMessage := menu.Text("Как устроены тренировки")
+	btnUnsubscribe := menu.Text("Отписаться")
+
+	// Category selector
+	categorySelector := &tele.ReplyMarkup{ResizeKeyboard: true, Selective: true}
+	btnOnlineCategory := categorySelector.Text("Онлайн")
+	btnOfflineCategory := categorySelector.Text("Оффлайн")
+	btnAnketaCategory := categorySelector.Text("Заполнить анкету")
+	btnCategoryBack := categorySelector.Text("Назад")
+
+	h := NewHandler(context.Background(), bot, menu, categorySelector)
+
+	h.menu.Reply(
 		menu.Row(btnSubscribe),
 		menu.Row(btnSendMessage),
+		menu.Row(btnUnsubscribe),
 	)
 
-	categorySelector.Reply(
+	h.categorySelector.Reply(
 		categorySelector.Row(btnAnketaCategory),
 		categorySelector.Row(btnOnlineCategory),
 		categorySelector.Row(btnOfflineCategory),
@@ -58,38 +77,43 @@ func main() {
 
 	var channelID int64
 
-	b.Handle("/start", func(c tele.Context) error {
-		channelID = c.Chat().ID
-		return c.Send("Привет!", menu)
-	})
+	// start
+	h.bot.Handle("/start", h.handleStart)
+	h.bot.Handle(&btnUnsubscribe, h.handleRestart)
 
 	// основное меню
-	b.Handle(&btnSubscribe, func(c tele.Context) error {
+	h.bot.Handle(&btnSubscribe, func(c tele.Context) error {
 		return c.Send("Выбрать опцию", categorySelector)
 	})
-	b.Handle(&btnSendMessage, func(c tele.Context) error {
+	h.bot.Handle(&btnSendMessage, func(c tele.Context) error {
 		channelID = c.Chat().ID
-		sendMessage(b, channelID)
+		sendMessage(h.bot, channelID)
 		return nil
 	})
 
 	// селектор категорий
-	b.Handle(&btnOnlineCategory, func(c tele.Context) error {
+	h.bot.Handle(&btnOnlineCategory, func(c tele.Context) error {
 		return c.Send("Оформлена онлайн подписка", menu)
 	})
-	b.Handle(&btnOfflineCategory, func(c tele.Context) error {
+	h.bot.Handle(&btnOfflineCategory, func(c tele.Context) error {
 		return c.Send("Оформлена онлайн подписка", menu)
 	})
-	b.Handle(&btnAnketaCategory, func(c tele.Context) error {
+	h.bot.Handle(&btnAnketaCategory, func(c tele.Context) error {
 		return c.Send("https://ссылочка на гуглоформу.com", menu)
 	})
-	b.Handle(&btnCategoryBack, func(c tele.Context) error {
+	h.bot.Handle(&btnCategoryBack, func(c tele.Context) error {
 		return c.Send("Возврат в основное меню", menu)
 	})
 
-	// sendMessage(b)
+	h.bot.Start()
+}
 
-	b.Start()
+func (h *Handler) handleStart(c tele.Context) error {
+	return c.Send("Привет!", h.menu)
+}
+
+func (h *Handler) handleRestart(c tele.Context) error {
+	return c.Send("Вы отписались!", h.menu)
 }
 
 func sendMessage(b *tele.Bot, userID int64) {
