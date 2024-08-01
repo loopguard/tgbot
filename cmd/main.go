@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 	"strconv"
 	"time"
 
@@ -36,8 +37,8 @@ func (u *User) Recipient() string {
 
 func main() {
 	pref := tele.Settings{
-		// Token:  os.Getenv("TOKEN"),
-		Token:  "6596525393:AAG3CxadbZQPGmcciUBOEc5rOtpQDFtdfSc",
+		Token: os.Getenv("TOKEN"),
+		// Token:  "6596525393:AAG3CxadbZQPGmcciUBOEc5rOtpQDFtdfSc",
 		Poller: &tele.LongPoller{Timeout: 10 * time.Second},
 	}
 
